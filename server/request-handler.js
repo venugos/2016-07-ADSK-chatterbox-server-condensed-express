@@ -11,8 +11,14 @@ this file and include it in basic-server.js so that it actually works.
 *Hint* Check out the node module documentation at http://nodejs.org/api/modules.html.
 
 **************************************************************/
+var qs = require('querystring');
+var urlprase = require('url');
+var _ = require('underscore');
 
-var requestHandler = function(request, response) {
+var messages = [];
+var startOjectId = 0;
+
+var requestHandler = function (request, response) {
   // Request and Response come from node's http module.
   //
   // They include information about both the incoming request, such as
@@ -28,18 +34,55 @@ var requestHandler = function(request, response) {
   // debugging help, but you should always be careful about leaving stray
   // console.logs in your code.
   console.log("Serving request type " + request.method + " for url " + request.url);
-
-  // The outgoing status.
-  var statusCode = 200;
-
+  //console.log("Request type: ", Object.getPrototypeOf(request));
   // See the note below about CORS headers.
   var headers = defaultCorsHeaders;
+  // The outgoing status.
+  var statusCode = 200;
 
   // Tell the client we are sending them plain text.
   //
   // You will need to change this if you are sending something
   // other than plain text, like JSON or HTML.
-  headers['Content-Type'] = "text/plain";
+  headers['Content-Type'] = "application/json";
+
+  if (request.method === 'OPTIONS') {
+    //headers = {};
+    // IE8 does not allow domains to be specified, just the *
+    // headers["Access-Control-Allow-Origin"] = req.headers.origin;
+    // headers["Access-Control-Allow-Origin"] = "*";
+    // headers["Access-Control-Allow-Methods"] = "POST, GET, PUT, DELETE, OPTIONS";
+    headers["Access-Control-Allow-Credentials"] = true;
+    headers["Access-Control-Max-Age"] = '86400'; // 24 hours
+    headers["Access-Control-Allow-Headers"] = "X-Requested-With, Access-Control-Allow-Origin, X-HTTP-Method-Override, Content-Type, Accept";
+    response.writeHead(200, headers);
+    response.end();
+    return;
+  }
+  else if (request.method === 'POST') {
+    var body = '';
+    request.on('data', function (chunk) {
+      //console.log('Reading data');
+      body += chunk;
+    }).on('end', function () {
+      var post = qs.parse(body);
+      //console.log("POST:\n", post);
+      for (var key in post) {
+        var keyObj = JSON.parse(key);
+
+        keyObj.objectId = startOjectId++;
+        //console.log("Key: ", keyObj);
+        messages.push(keyObj);
+      }
+    });
+  }
+  else if (request.method === 'GET') { // GET 
+    //console.log(messages);
+    response.writeHead(statusCode, headers);
+    response.write(JSON.stringify({ results: messages }));
+    response.end();
+    return;
+  }
 
   // .writeHead() writes to the request line and headers of the response,
   // which includes the status and all headers.
@@ -52,7 +95,7 @@ var requestHandler = function(request, response) {
   //
   // Calling .end "flushes" the response's internal buffer, forcing
   // node to actually send all the data over to the client.
-  response.end("Hello, World!");
+  response.end();
 };
 
 // These headers will allow Cross-Origin Resource Sharing (CORS).
@@ -70,4 +113,6 @@ var defaultCorsHeaders = {
   "access-control-allow-headers": "content-type, accept",
   "access-control-max-age": 10 // Seconds.
 };
+
+exports.requestHandler = requestHandler;
 
