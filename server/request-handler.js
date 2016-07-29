@@ -12,10 +12,10 @@ this file and include it in basic-server.js so that it actually works.
 
 **************************************************************/
 var qs = require('querystring');
-var urlprase = require('url');
+var urlparse = require('url');
 var _ = require('underscore');
 
-var messages = [];
+var url_messages = {};
 var startOjectId = 0;
 
 var requestHandler = function (request, response) {
@@ -64,7 +64,9 @@ var requestHandler = function (request, response) {
     request.on('data', function (chunk) {
       //console.log('Reading data');
       body += chunk;
-    }).on('end', function () {
+    });
+
+    request.on('end', function () {
       var post = qs.parse(body);
       //console.log("POST:\n", post);
       for (var key in post) {
@@ -72,15 +74,29 @@ var requestHandler = function (request, response) {
 
         keyObj.objectId = startOjectId++;
         //console.log("Key: ", keyObj);
-        messages.push(keyObj);
+        var msgs = url_messages[request.url] || [];
+        msgs.push(keyObj);
+        url_messages[request.url] = msgs;
       }
     });
+
+    response.writeHead(201, headers);
+    response.end();
+    return;
   }
   else if (request.method === 'GET') { // GET 
     //console.log(messages);
+    var urlParts = urlparse.parse(request.url);
+    console.log(urlParts);
+    console.log(urlParts.pathname);
+    if (urlParts.pathname.includes('/arglebargle')) {
+      response.writeHead(404, headers);
+      response.end("Not found!");
+      return;
+    }
     response.writeHead(statusCode, headers);
-    response.write(JSON.stringify({ results: messages }));
-    response.end();
+    var resArray = url_messages[urlParts.pathname] || [];
+    response.end(JSON.stringify({ results: resArray }));
     return;
   }
 
