@@ -14,12 +14,12 @@ this file and include it in basic-server.js so that it actually works.
 var url = require('url');
 
 var defaultCorsHeaders = {
-  "access-control-allow-origin": "*",
-  "access-control-allow-methods": "GET, POST, PUT, DELETE, OPTIONS",
-  "access-control-allow-headers": "content-type, accept",
-  "Access-Control-Allow-Credentials": true,
-  "Access-Control-Max-Age": '86400', // 24 hours
-  "Access-Control-Allow-Headers": "X-Requested-With, Access-Control-Allow-Origin, X-HTTP-Method-Override, Content-Type, Accept"
+    "access-control-allow-origin": "*",
+    "access-control-allow-methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "access-control-allow-headers": "content-type, accept",
+    "Access-Control-Allow-Credentials": true,
+    "Access-Control-Max-Age": '86400', // 24 hours
+    "Access-Control-Allow-Headers": "X-Requested-With, Access-Control-Allow-Origin, X-HTTP-Method-Override, Content-Type, Accept"
 };
 
 var headers = defaultCorsHeaders;
@@ -28,40 +28,40 @@ headers['Content-Type'] = "application/json";
 var urlMessages = {};
 var startOjectId = 0;
 
+var sendResponse = function (response, status, data) {
+    response.writeHead(status, headers);
+    response.end(data);
+};
+
 var optionsHandler = function (request, response) {
-  response.writeHead(200, headers);
-  response.end();
+    sendResponse(response, 200);
 };
 
 var getHandler = function (request, response) {
-  var resArray = urlMessages[url.parse(request.url).pathname] || [];
-
-  response.writeHead(200, headers);
-  response.end(JSON.stringify({ results: resArray }));
+    var resArray = urlMessages[url.parse(request.url).pathname] || [];
+    sendResponse(response, 200, JSON.stringify({ results: resArray }));
 };
 
 var forbiddenHandler = function (request, response) {
-  response.writeHead(404, headers);
-  response.end("Not found!");
+    sendResponse(response, 404, "Forbidden!");
 };
 
 var postHandler = function (request, response) {
-  var body = '';
-  request.on('data', function (chunk) {
-    body += chunk;
-  });
+    var body = '';
+    request.on('data', function (chunk) {
+        body += chunk;
+    });
 
-  request.on('end', function () {
-    var message = JSON.parse(body);
-    message.objectId = startOjectId++;
-    message.createdTime = new Date();
-    var msgs = urlMessages[request.url] || [];
-    msgs.push(message);
-    urlMessages[request.url] = msgs;
-  });
+    request.on('end', function () {
+        var message = JSON.parse(body);
+        message.objectId = startOjectId++;
+        message.createdTime = new Date();
+        var msgs = urlMessages[request.url] || [];
+        msgs.push(message);
+        urlMessages[request.url] = msgs;
+    });
 
-  response.writeHead(201, headers);
-  response.end(JSON.stringify({ objectId: startOjectId - 1 }));
+    sendResponse(response, 201, JSON.stringify({ objectId: startOjectId - 1 }));
 };
 
 exports.optionsHandler = optionsHandler;
