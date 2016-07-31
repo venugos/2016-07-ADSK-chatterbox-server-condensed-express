@@ -29,9 +29,9 @@ app.get(/classes/, handler.getHandler); // paths containing 'classes', note rege
 app.post(/classes/, handler.postHandler);// paths containing 'classes', note regex
 
 app.post('/send', handler.postHandler);
-app.get('/send', handler.getHandler)
+app.get('/send', handler.getHandler);
 
-app.listen(port, function () {
+app.listen(port, ip, function () {
     console.log("Listening on http://" + ip + ":" + port);
 });
 

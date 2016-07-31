@@ -11,7 +11,6 @@ this file and include it in basic-server.js so that it actually works.
 *Hint* Check out the node module documentation at http://nodejs.org/api/modules.html.
 
 **************************************************************/
-var qs = require('querystring');
 var url = require('url');
 
 var defaultCorsHeaders = {
@@ -53,20 +52,16 @@ var postHandler = function (request, response) {
   });
 
   request.on('end', function () {
-    var post = qs.parse(body);
-    for (var key in post) {
-      var keyObj = JSON.parse(key);
-
-      keyObj.objectId = startOjectId++;
-      var msgs = urlMessages[request.url] || [];
-      msgs.push(keyObj);
-      urlMessages[request.url] = msgs;
-      break; // Only expects a single object
-    }
+    var message = JSON.parse(body);
+    message.objectId = startOjectId++;
+    message.createdTime = new Date();
+    var msgs = urlMessages[request.url] || [];
+    msgs.push(message);
+    urlMessages[request.url] = msgs;
   });
 
   response.writeHead(201, headers);
-  response.end();
+  response.end(JSON.stringify({ objectId: startOjectId - 1 }));
 };
 
 exports.optionsHandler = optionsHandler;
