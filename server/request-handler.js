@@ -12,123 +12,64 @@ this file and include it in basic-server.js so that it actually works.
 
 **************************************************************/
 var qs = require('querystring');
-var urlparse = require('url');
-var _ = require('underscore');
+var url = require('url');
 
-var url_messages = {};
-var startOjectId = 0;
-
-var requestHandler = function (request, response) {
-  // Request and Response come from node's http module.
-  //
-  // They include information about both the incoming request, such as
-  // headers and URL, and about the outgoing response, such as its status
-  // and content.
-  //
-  // Documentation for both request and response can be found in the HTTP section at
-  // http://nodejs.org/documentation/api/
-
-  // Do some basic logging.
-  //
-  // Adding more logging to your server can be an easy way to get passive
-  // debugging help, but you should always be careful about leaving stray
-  // console.logs in your code.
-  console.log("Serving request type " + request.method + " for url " + request.url);
-  //console.log("Request type: ", Object.getPrototypeOf(request));
-  // See the note below about CORS headers.
-  var headers = defaultCorsHeaders;
-  // The outgoing status.
-  var statusCode = 200;
-
-  // Tell the client we are sending them plain text.
-  //
-  // You will need to change this if you are sending something
-  // other than plain text, like JSON or HTML.
-  headers['Content-Type'] = "application/json";
-
-  if (request.method === 'OPTIONS') {
-    //headers = {};
-    // IE8 does not allow domains to be specified, just the *
-    // headers["Access-Control-Allow-Origin"] = req.headers.origin;
-    // headers["Access-Control-Allow-Origin"] = "*";
-    // headers["Access-Control-Allow-Methods"] = "POST, GET, PUT, DELETE, OPTIONS";
-    headers["Access-Control-Allow-Credentials"] = true;
-    headers["Access-Control-Max-Age"] = '86400'; // 24 hours
-    headers["Access-Control-Allow-Headers"] = "X-Requested-With, Access-Control-Allow-Origin, X-HTTP-Method-Override, Content-Type, Accept";
-    response.writeHead(200, headers);
-    response.end();
-    return;
-  }
-  else if (request.method === 'POST') {
-    var body = '';
-    request.on('data', function (chunk) {
-      //console.log('Reading data');
-      body += chunk;
-    });
-
-    request.on('end', function () {
-      var post = qs.parse(body);
-      //console.log("POST:\n", post);
-      for (var key in post) {
-        var keyObj = JSON.parse(key);
-
-        keyObj.objectId = startOjectId++;
-        //console.log("Key: ", keyObj);
-        var msgs = url_messages[request.url] || [];
-        msgs.push(keyObj);
-        url_messages[request.url] = msgs;
-      }
-    });
-
-    response.writeHead(201, headers);
-    response.end();
-    return;
-  }
-  else if (request.method === 'GET') { // GET 
-    //console.log(messages);
-    var urlParts = urlparse.parse(request.url);
-    console.log(urlParts);
-    console.log(urlParts.pathname);
-    if (urlParts.pathname.includes('/arglebargle')) {
-      response.writeHead(404, headers);
-      response.end("Not found!");
-      return;
-    }
-    response.writeHead(statusCode, headers);
-    var resArray = url_messages[urlParts.pathname] || [];
-    response.end(JSON.stringify({ results: resArray }));
-    return;
-  }
-
-  // .writeHead() writes to the request line and headers of the response,
-  // which includes the status and all headers.
-  response.writeHead(statusCode, headers);
-
-  // Make sure to always call response.end() - Node may not send
-  // anything back to the client until you do. The string you pass to
-  // response.end() will be the body of the response - i.e. what shows
-  // up in the browser.
-  //
-  // Calling .end "flushes" the response's internal buffer, forcing
-  // node to actually send all the data over to the client.
-  response.end();
-};
-
-// These headers will allow Cross-Origin Resource Sharing (CORS).
-// This code allows this server to talk to websites that
-// are on different domains, for instance, your chat client.
-//
-// Your chat client is running from a url like file://your/chat/client/index.html,
-// which is considered a different domain.
-//
-// Another way to get around this restriction is to serve you chat
-// client from this domain by setting up static file serving.
 var defaultCorsHeaders = {
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "GET, POST, PUT, DELETE, OPTIONS",
   "access-control-allow-headers": "content-type, accept",
-  "access-control-max-age": 10 // Seconds.
+  "Access-Control-Allow-Credentials": true,
+  "Access-Control-Max-Age": '86400', // 24 hours
+  "Access-Control-Allow-Headers": "X-Requested-With, Access-Control-Allow-Origin, X-HTTP-Method-Override, Content-Type, Accept"
 };
 
-exports.requestHandler = requestHandler;
+var headers = defaultCorsHeaders;
+headers['Content-Type'] = "application/json";
 
+var urlMessages = {};
+var startOjectId = 0;
+
+var optionsHandler = function (request, response) {
+  response.writeHead(200, headers);
+  response.end();
+};
+
+var getHandler = function (request, response) {
+  var resArray = urlMessages[url.parse(request.url).pathname] || [];
+
+  response.writeHead(200, headers);
+  response.end(JSON.stringify({ results: resArray }));
+};
+
+var forbiddenHandler = function (request, response) {
+  response.writeHead(404, headers);
+  response.end("Not found!");
+};
+
+var postHandler = function (request, response) {
+  var body = '';
+  request.on('data', function (chunk) {
+    body += chunk;
+  });
+
+  request.on('end', function () {
+    var post = qs.parse(body);
+    for (var key in post) {
+      var keyObj = JSON.parse(key);
+
+      keyObj.objectId = startOjectId++;
+      var msgs = urlMessages[request.url] || [];
+      msgs.push(keyObj);
+      urlMessages[request.url] = msgs;
+      break; // Only expects a single object
+    }
+  });
+
+  response.writeHead(201, headers);
+  response.end();
+};
+
+exports.optionsHandler = optionsHandler;
+exports.getHandler = getHandler;
+exports.postHandler = postHandler;
+exports.forbiddenHandler = forbiddenHandler;
